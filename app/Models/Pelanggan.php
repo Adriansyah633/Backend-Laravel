@@ -8,7 +8,7 @@ class Pelanggan extends Model
 {
    protected $table='tr_baca_dt';
 
-   protected $primary_key = null;
+//    protected $primary_key = null;
 //    protected $primaryKey='nolangg';
    protected $casts = [
     'nolangg' => 'string',

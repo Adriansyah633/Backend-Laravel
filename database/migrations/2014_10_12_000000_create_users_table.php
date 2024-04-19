@@ -14,7 +14,8 @@ return new class extends Migration
         Schema::create('users', function (Blueprint $table) {
             $table->string('kode')->primary();
             $table->string('nm_petugas');
-            $table->timestamp('password');
+            $table->string('role');
+            $table->string('password');
             $table->enum('cabang',['0','1','2','3','4','5']);
             $table->rememberToken();
             $table->timestamps();
