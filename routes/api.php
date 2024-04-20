@@ -41,9 +41,10 @@ Route::put('/simpan',  [PelangganController::class, 'simpan_data']);
 Route::get('/pelanggan/cari/{dism}',  [PelangganController::class, 'cari_data_dism']);
 Route::get('/getdetail',  [PelangganController::class, 'getdetailpelanggan']);
 Route::get('/riwayat',  [PelangganController::class, 'riwayat']);
-Route::delete('riwayat/{nolangg}', [PelangganController::class, 'delete']);
+Route::delete('delete/{nolangg}', [PelangganController::class, 'delete']);
 Route::get('/getStatus', [StatusController::class, 'index']);
 Route::post('/upload-image/{nolangg}', [PelangganController::class, 'uploadImage']);
+Route::post('/cari', [PelangganController::class, 'cariDataNolangg']);
 
 });
 

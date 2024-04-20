@@ -27,40 +27,58 @@ class PelangganController extends Controller
     $data = Pelanggan::where('nolangg','like','%'.$nolangg.'%')->get();
     return response()->json($data);
 }
+public function cariDataNolangg(Request $request)
+{
+    // Validasi request
+    $request->validate([
+        'nolangg' => 'required|string', // Pastikan nolangg yang dicari diisi dan berupa string
+    ]);
+
+    // Lakukan pencarian data berdasarkan nolangg
+    $nolangg = $request->input('nolangg');
+    $periodeNow = Carbon::now()->setTimezone('Asia/Jakarta')->format('Ym'); 
+    $data = Pelanggan::with('statusBaca', 
+    'rl_petugas', 'statusMeter', 'allStatusMeter', 'Cabang')->where('nolangg', 'like', '%' . $nolangg . '%')->where('periode','=',$periodeNow)->get();
+
+    // Kirim respons dengan data yang ditemukan
+    return response()->json([
+        'data' => $data,
+    ]);
+}
 
 public function cari_data_dism(Request $request)
 {
     $user = User::where('kode',$request->kode)->first();
-
+    $periodeNow = Carbon::now()->setTimezone('Asia/Jakarta')->format('Ym'); 
     $data = Pelanggan::with('statusBaca', 
-    'rl_petugas', 'statusMeter', 'allStatusMeter', 'Cabang')->where('dism', 'LIKE', $request->bendel.'%')->where('cabang', '=', $user->cabang,)->where('dt','=', '0')->get();
+    'rl_petugas', 'statusMeter', 'allStatusMeter', 'Cabang')->where('dism', 'LIKE', $request->bendel.'%')->where('cabang', '=', $user->cabang,)->where('dt','=', '0')->where('periode','=', $periodeNow)->get();
     return response()->json($data);
 }
 
 public function getCheckPelanggan(Request $request)
 {
+    $periodeNow = Carbon::now()->setTimezone('Asia/Jakarta')->format('Ym');
+
     // Periksa apakah ada data dengan nolangg yang sama
-    $data = Pelanggan::where('nolangg', '=', $request->nolangg)->get();
+    $data = Pelanggan::where('nolangg', $request->nolangg)->where('periode', '=', $periodeNow)->where('dt','=','0')->first();
 
     // Jika tidak ada data ditemukan
-    if ($data->isEmpty()) {
+    if (!$data) {
         return response()->json([
-            'result' => 'Data Tidak Ditemukan',
+            'result' => 'Data Tidak Ditemukan atau sudah SIAP!!',
             'kode' => '0'
         ]);
     }
+    // if ($data->dt !== '0') {
+    //     return response()->json([
+    //         'result' => 'Data tidak dapat diedit karena Data Sudah SIAP!!',
+    //         'kode' => '2'
+    //     ]);
+    // }
 
-    // Jika ada lebih dari satu entri nolangg untuk pelanggan tertentu
-    if ($data->count() > 4) {
-        return response()->json([
-            'result' => 'Anda sudah memiliki data pada bulan ini',
-            'kode' => '2'
-        ]);
-    }
-
-    // Jika hanya ada satu entri nolangg untuk pelanggan tertentu
+    // Jika periode sekarang dan dt = 0
     return response()->json([
-        'result' => 'Data ditemukan',
+        'result' => 'Data ditemukan dan bisa diedit',
         'kode' => '1'
     ]);
 }
@@ -132,6 +150,9 @@ public function getdetailpelanggan(Request $request)
     if ($validator->fails()) {
         return response()->json(['error' => $validator->errors()], 422);
     }
+
+    // $now = Carbon::now()->setTimezone('Asia/Jakarta');
+    // $periodeNow = Carbon::now()->setTimezone('Asia/Jakarta')->format('Ym'); 
     $detail = Pelanggan::with('statusBaca', 
     'rl_petugas', 'statusMeter', 'allStatusMeter', 'Cabang')->where('nolangg','=', $request->nolangg)->where('periode', '=', $request->periode)
     ->first();
@@ -147,46 +168,46 @@ public function getdetailpelanggan(Request $request)
     return response()->json($detail);
 }
 
-public function simpan_data(Request $request){
-    $validator = Validator::make ($request->all(), [
-        'nolangg' => 'required',
-        'alamat' => 'required',
-        'dism' => 'required',
-        'lalu' => 'required',
-        'dt' => 'required',
-        'periode' => 'required',
-        'st' => 'required',
-        'kini' => 'required',
-        'kt' => 'required', 
-        'file' => 'required|image',
-    ]);
-    if($validator->fails()) {
-        return response()->json(['error', $validator->errors()],422);
-    }
-    $file = $request->file('file');
+// public function simpan_data(Request $request){
+//     $validator = Validator::make ($request->all(), [
+//         'nolangg' => 'required',
+//         'alamat' => 'required',
+//         'dism' => 'required',
+//         'lalu' => 'required',
+//         'dt' => 'required',
+//         'periode' => 'required',
+//         'st' => 'required',
+//         'kini' => 'required',
+//         'kt' => 'required', 
+//         'file' => 'required|image',
+//     ]);
+//     if($validator->fails()) {
+//         return response()->json(['error', $validator->errors()],422);
+//     }
+//     $file = $request->file('file');
 
-    $storagePath = 'storage/public/uploads';
+//     $storagePath = 'storage/public/uploads';
 
-    $filePath = $file->store($storagePath);
+//     $filePath = $file->store($storagePath);
 
-    $fileUrl = url(Storage::url($filePath));
-    Pelanggan::create([
-        'nolangg' => $request->nolangg,
-        'alamat' => $request->alamat,
-        'dism' =>  $request->dism,
-        'lalu' => $request->lalu,
-        'dt' => $request->dt,
-        'periode' => $request->periode,
-        'st'  => $request->st,
-        'kini' => $request->kini,
-        'kt' => $request->kt,
-        'file' => $fileUrl,
-    ]);
-    return response()->json(['message'=>'Data berhasil disimpan'],200);
+//     $fileUrl = url(Storage::url($filePath));
+//     Pelanggan::create([
+//         'nolangg' => $request->nolangg,
+//         'alamat' => $request->alamat,
+//         'dism' =>  $request->dism,
+//         'lalu' => $request->lalu,
+//         'dt' => $request->dt,
+//         'periode' => $request->periode,
+//         'st'  => $request->st,
+//         'kini' => $request->kini,
+//         'kt' => $request->kt,
+//         'file' => $fileUrl,
+//     ]);
+//     return response()->json(['message'=>'Data berhasil disimpan'],200);
 
 
 
-}
+// }
 public function edit(Request $request, $nolangg)
 { 
     $data = Pelanggan::where('nolangg', $nolangg)->first();
@@ -239,14 +260,21 @@ public function edit(Request $request, $nolangg)
             $fileUrl = url(Storage::url($filePath));
             $dataFile = $fileUrl;
 
+            $petugas = $request->user()->kode; 
+            $now = Carbon::now()->setTimezone('Asia/Jakarta');
+            $data->tgl_baca = $now->toDateString();
+
             Pelanggan::where('nolangg', $request->nolangg)
             ->where('periode', $data->periode )
             ->update([
                 'nolangg' => $request->nolangg,
                 'dism' => $request->dism,
+                'petugas' => $petugas,
+                'tgl_baca' => $data->tgl_baca,
                 'alamat' => $request->alamat,
                 'lalu' => $request->lalu,
                 'st' => $request->st,
+                'dt' => '1' ,
                 'kini' => $request->kini, 
                 'kt' => $request->kt,
                 'file' =>  $dataFile,
@@ -259,25 +287,6 @@ public function edit(Request $request, $nolangg)
             ],200);
         }
        
-        // $existingData->update([
-        //         'nolangg' => $request->nolangg,
-        //         'dism' => $request->dism,
-        //         'alamat' => $request->alamat,
-        //         'lalu' => $request->lalu,
-        //         'st' => $request->st,
-        //         'kini' => $request->kini, 
-        //         'kt' => $request->kt, 
-        // ]);
-        // $existingData->nolangg = trim($request->nolangg); 
-        // $existingData->dism =  trim($request->dism);
-        // $existingData->alamat =  trim($request->alamat);
-        // $existingData->lalu =  trim($request->lalu);
-        // $existingData->st =  trim($request->st);
-        // $existingData->kini =  trim($request->kini);
-        // $existingData->kt =  trim($request->kt);
-        // $existingData->update();
-        // return response()->json(['error' => $existingData], 422);
-        // return response()->json(['error' => $existingData], 422);
     } else {
         // Jika tidak ada, tambahkan data baru
         $dataAfterUpdate = new Pelanggan();
@@ -484,9 +493,9 @@ public function uploadImage(Request $request, $nolangg)
 // }
 public function riwayat(Request $request)
 {
-    // cari tahun dan bulang secara otomatis untuk mengisi periode secara 202403
+    $periodeNow = Carbon::now()->setTimezone('Asia/Jakarta')->format('Ym'); 
     $riwayat = RiwayatPelanggan::with('statusBaca', 
-    'rl_petugas', 'statusMeter', 'allStatusMeter', 'Cabang')->where('petugas','=', $request->petugas)->where('periode','=', $request->periode)->get();
+    'rl_petugas', 'statusMeter', 'allStatusMeter', 'Cabang')->where('petugas','=', $request->petugas)->where('periode', '=', $periodeNow)->get();
 
     if (!$riwayat) {
         return response()->json(['message' => 'Riwayat Tidak Ditemukan'], 400);
@@ -501,16 +510,25 @@ public function riwayat(Request $request)
 public function delete($nolangg)
 {
     // Cari data pelanggan berdasarkan id
-    $pelanggan = Pelanggan::findOrFail($nolangg);
-    $pelanggan->delete();
+    $pelanggan = Pelanggan::where('nolangg', $nolangg)->first();
+    if ($pelanggan) {
+        $pelanggan->delete();
 
-    // Hapus data riwayat pelanggan berdasarkan id pelanggan
-    RiwayatPelanggan::where('nolangg','=', $nolangg)->delete();
+        // Hapus data riwayat pelanggan berdasarkan nolangg
+        RiwayatPelanggan::where('nolangg', $nolangg)->delete();
 
-    // Kirim respons
-    return response()->json([
-        'message' => 'Data berhasil dihapus',
-    ]);
+        Pelanggan::where('nolangg', $nolangg)->delete();
+
+        // Kirim respons berhasil
+        return response()->json([
+            'message' => 'Data berhasil dihapus',
+        ]);
+    } else {
+        // Jika data tidak ditemukan, kirim respons data tidak ditemukan
+        return response()->json([
+            'message' => 'Data dengan nolangg tersebut tidak ditemukan',
+        ], 404);
+    }
 }
 
 }
