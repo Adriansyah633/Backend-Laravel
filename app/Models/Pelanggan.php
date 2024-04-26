@@ -30,6 +30,7 @@ class Pelanggan extends Model
     'petugas',
     'cabang',
     'ke',
+    'user_entry',
     'stver',
    ];
    public $timestamps=false;

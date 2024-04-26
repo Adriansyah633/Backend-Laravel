@@ -38,6 +38,24 @@ public function cariDataNolangg(Request $request)
     $nolangg = $request->input('nolangg');
     $periodeNow = Carbon::now()->setTimezone('Asia/Jakarta')->format('Ym'); 
     $data = Pelanggan::with('statusBaca', 
+    'rl_petugas', 'statusMeter', 'allStatusMeter', 'Cabang')->where('nolangg', 'like', '%' . $nolangg . '%')->where('periode','=',$periodeNow)->where('dt', '=', '0')->get();
+
+    // Kirim respons dengan data yang ditemukan
+    return response()->json([
+        'data' => $data,
+    ]);
+}
+public function cariDataRiwayat(Request $request)
+{
+    // Validasi request
+    $request->validate([
+        'nolangg' => 'required|string', // Pastikan nolangg yang dicari diisi dan berupa string
+    ]);
+
+    // Lakukan pencarian data berdasarkan nolangg
+    $nolangg = $request->input('nolangg');
+    $periodeNow = Carbon::now()->setTimezone('Asia/Jakarta')->format('Ym'); 
+    $data = Pelanggan::with('statusBaca', 
     'rl_petugas', 'statusMeter', 'allStatusMeter', 'Cabang')->where('nolangg', 'like', '%' . $nolangg . '%')->where('periode','=',$periodeNow)->get();
 
     // Kirim respons dengan data yang ditemukan
@@ -168,46 +186,6 @@ public function getdetailpelanggan(Request $request)
     return response()->json($detail);
 }
 
-// public function simpan_data(Request $request){
-//     $validator = Validator::make ($request->all(), [
-//         'nolangg' => 'required',
-//         'alamat' => 'required',
-//         'dism' => 'required',
-//         'lalu' => 'required',
-//         'dt' => 'required',
-//         'periode' => 'required',
-//         'st' => 'required',
-//         'kini' => 'required',
-//         'kt' => 'required', 
-//         'file' => 'required|image',
-//     ]);
-//     if($validator->fails()) {
-//         return response()->json(['error', $validator->errors()],422);
-//     }
-//     $file = $request->file('file');
-
-//     $storagePath = 'storage/public/uploads';
-
-//     $filePath = $file->store($storagePath);
-
-//     $fileUrl = url(Storage::url($filePath));
-//     Pelanggan::create([
-//         'nolangg' => $request->nolangg,
-//         'alamat' => $request->alamat,
-//         'dism' =>  $request->dism,
-//         'lalu' => $request->lalu,
-//         'dt' => $request->dt,
-//         'periode' => $request->periode,
-//         'st'  => $request->st,
-//         'kini' => $request->kini,
-//         'kt' => $request->kt,
-//         'file' => $fileUrl,
-//     ]);
-//     return response()->json(['message'=>'Data berhasil disimpan'],200);
-
-
-
-// }
 public function edit(Request $request, $nolangg)
 { 
     $data = Pelanggan::where('nolangg', $nolangg)->first();
@@ -232,7 +210,6 @@ public function edit(Request $request, $nolangg)
         'nolangg' => 'sometimes',
         'dism' => 'sometimes',  
         'alamat' => 'sometimes',
-        'lalu' => 'sometimes', 
         'st' => 'sometimes',
         'kini' => 'sometimes',
         'kt' => 'sometimes',
@@ -253,7 +230,7 @@ public function edit(Request $request, $nolangg)
     // }
     // Jika data sudah ada, lakukan pembaruan
     if ($existingData){
-        if ($request->hasFile('file')) {
+        if ($request->all()) {
             $file = $request->file('file');
             $storagePath = 'public/uploads';
             $filePath = $file->store($storagePath);
@@ -261,8 +238,18 @@ public function edit(Request $request, $nolangg)
             $dataFile = $fileUrl;
 
             $petugas = $request->user()->kode; 
+            $user_entry = $request->user()->kode; 
+            $pc_entry = $request->user()->nm_petugas; 
             $now = Carbon::now()->setTimezone('Asia/Jakarta');
             $data->tgl_baca = $now->toDateString();
+            $m3 = $request->kini - $data->lalu;
+            $ipAddress = $request->ip();
+            $ke =  Pelanggan::where('nolangg', $request->nolangg)
+            ->where('periode', $data->periode )
+            ->first();
+            $previousKe = $ke->ke;
+            $newKe = $previousKe + 1;
+
 
             Pelanggan::where('nolangg', $request->nolangg)
             ->where('periode', $data->periode )
@@ -272,11 +259,15 @@ public function edit(Request $request, $nolangg)
                 'petugas' => $petugas,
                 'tgl_baca' => $data->tgl_baca,
                 'alamat' => $request->alamat,
-                'lalu' => $request->lalu,
                 'st' => $request->st,
                 'dt' => '1' ,
                 'kini' => $request->kini, 
                 'kt' => $request->kt,
+                'm3' => $m3,
+                'user_entry' => $user_entry,
+                'pc_entry' => $pc_entry,
+                'ip_entry' => $ipAddress,
+                'ke' => $newKe,
                 'file' =>  $dataFile,
 
             ]);
@@ -385,112 +376,11 @@ public function uploadImage(Request $request, $nolangg)
           $pelanggan = Pelanggan::where('nolangg', $nolangg)->where('periode', $periode)->update([
             'file' =>  $fileUrl,
           ]);
-    
-          // Perbarui periode pada data pelanggan menjadi periode saat ini
-        //   $pelanggan->periode = Carbon::now()->format('Ym');
-      
-          // Simpan perubahan
-        //   $pelanggan->save();
-    
         return response()->json(['message' => 'Gambar berhasil diunggah'], 200);
     }
 
     
 }
-
-// public function edit(Request $request, $nolangg)
-// {
-//     // return response()->json($request->hasFile('files'));
-//     $data = Pelanggan::find($nolangg);
-//     if(!$data){
-//         return response()->json(['message' => 'Data Tidak Ditemukan'],404);
-//     }
-//     // $beforeUpdate = $data->toArray();
-//     // $dataSebelumUpdate = new Pelanggan();
-//     // $dataSebelumUpdate->fill($beforeUpdate);
-//     // $dataSebelumUpdate->save();
-//     $validator= Validator::make($request->all(),[
-//         'nolangg' => 'sometimes',
-//         'dism' => 'sometimes',  
-//         'periode' => 'sometimes',
-//         'alamat' => 'sometimes',
-//         'lalu' => 'sometimes',
-//         'dt' => 'sometimes',    
-//         'st' => 'sometimes',
-//         'kini' => 'sometimes',
-//         'kt' => 'sometimes',
-//         'file' => 'nullable|image',
-//     ]);
-//     if($validator->fails()) {
-//         return response()->json(['error', $validator->errors()],422);
-//     }
- 
-//     $data->update($request->all());
-//     $statusBefore = $data->dt; 
-
-//     if ($statusBefore === '0') {
-//         $data->dt = '1';
-//     }
-//     if ($request->hasFile('file')) {
-//         $file = $request->file('file');
-//         $storagePath = 'storage/public/uploads';
-//         $filePath = $file->store($storagePath);
-//         $fileUrl = url(Storage::url($filePath));
-//         $data->file = $fileUrl;
-//     }
-//     $afterUpdate = $data->toArray();
-//     $petugas = $request->user()->kode;
-//     $data->petugas = $petugas;
-//     $now = Carbon::now()->setTimezone('Asia/Jakarta');
-//     $data->tgl_baca = $now->toDateString();
-//     $data->periode = Carbon::now()->format('Ym');
-//     $data->save();
-    
-//     $riwayat = new RiwayatPelanggan();
-
-
-//     $data->update([
-//         'periode' => $afterUpdate['periode'],
-//         'dism' => $afterUpdate['dism'],
-//         'petugas' => $afterUpdate['petugas'],
-//         'tgl_baca' => $afterUpdate['tgl_baca'],
-//         'jam_baca' => $afterUpdate['jam_baca'],
-//         'urut' => $afterUpdate['urut'],
-//         'lalu' => $afterUpdate['lalu'],
-//         'kini' => $afterUpdate['kini'],
-//         'm3' => $afterUpdate['m3'],
-//         'kt' => $afterUpdate['kt'],
-//         'st' => $afterUpdate['st'],
-//         'dt' => $afterUpdate['dt'],
-//         'tgl_data' => $afterUpdate['tgl_data'],
-//         'file' => $afterUpdate['file'],
-//         'cabang' => $afterUpdate['cabang'],
-//         'user_entry' => $afterUpdate['user_entry'],
-//         'pc_entry' => $afterUpdate['pc_entry'],
-//         'ip_entry' => $afterUpdate['ip_entry'],
-//         'ke' => $afterUpdate['ke'],
-//         'tgl_ver' => $afterUpdate['tgl_ver'],
-//         'user_ver' => $afterUpdate['user_ver'],
-//         'stver' => $afterUpdate['stver'],
-//         'catatanver' => $afterUpdate['catatanver'],
-//         'kever' => $afterUpdate['kever'],
-//         'tgl_transfer' => $afterUpdate['tgl_transfer'],
-//         'user_transfer' => $afterUpdate['user_transfer'],
-//         'tanggal' => $afterUpdate['tanggal'],
-//         'jam_ver' => $afterUpdate['jam_ver'],
-//         'longitude' => $afterUpdate['longitude'],
-//         'latitude' => $afterUpdate['latitude'],
-//         'alamat' => $afterUpdate['alamat'],
-//     ]);
-    
-
-//     return response()->json([
-//         'message'=>'Data berhasil disimpan',
-//         // 'beforeUpdate' => $beforeUpdate,
-//         'fileUrl' => $data->file ?? null,
-//         'afterUpdate' => $afterUpdate,
-//     ],200);
-// }
 public function riwayat(Request $request)
 {
     $periodeNow = Carbon::now()->setTimezone('Asia/Jakarta')->format('Ym'); 
