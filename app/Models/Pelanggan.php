@@ -12,6 +12,7 @@ class Pelanggan extends Model
 //    protected $primaryKey='nolangg';
    protected $casts = [
     'nolangg' => 'string',
+    'ip_entry' => 'string',
 ];
    protected $fillable =[
     'nolangg',

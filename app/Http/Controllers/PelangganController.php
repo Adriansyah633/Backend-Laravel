@@ -12,6 +12,9 @@ use Illuminate\Support\Facades\Storage;
 use Carbon\Carbon;
 use App\Models\RiwayatPelanggan;
 use App\Models\StatusMeter;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Crypt;
+use Illuminate\Support\Str;
 
 class PelangganController extends Controller
 {
@@ -218,13 +221,35 @@ public function edit(Request $request, $nolangg)
     if($validator->fails()) {
         return response()->json(['error', $validator->errors()],422);
     } 
+    // function get_client_ip() {
+    //     $ipaddress = '';
+    //     if (isset($_SERVER['HTTP_CLIENT_IP']))
+    //         $ipaddress = $_SERVER['HTTP_CLIENT_IP'];
+    //     else if(isset($_SERVER['HTTP_X_FORWARDED_FOR']))
+    //         $ipaddress = $_SERVER['HTTP_X_FORWARDED_FOR'];
+    //     else if(isset($_SERVER['HTTP_X_FORWARDED']))
+    //         $ipaddress = $_SERVER['HTTP_X_FORWARDED'];
+    //     else if(isset($_SERVER['HTTP_FORWARDED_FOR']))
+    //         $ipaddress = $_SERVER['HTTP_FORWARDED_FOR'];
+    //     else if(isset($_SERVER['HTTP_FORWARDED']))
+    //         $ipaddress = $_SERVER['HTTP_FORWARDED'];
+    //     else if(isset($_SERVER['REMOTE_ADDR']))
+    //         $ipaddress = $_SERVER['REMOTE_ADDR'];
+    //     else
+    //         $ipaddress = 'UNKNOWN';
+    //     return $ipaddress;
+    // }
+    // $clientIP = 'https://api.ip2location.io/?key=E8BC4C168D4FC2F961B305F8A2B0B710&ip=140.213.190.5';
 
-  
+    $publicIp = Http::get('https://api.ipify.org')->body();
+    // $getIp = strval($publicIp);
+    // $getIp = Str::mask( $publicIp , '*', 4);
    
     // Periksa apakah data sudah ada di periode saat ini
     $existingData = Pelanggan::where('nolangg', $request->nolangg)
     ->where('periode', $data->periode )
     ->first();
+    // $existingData->ip_entry = (string) $existingData->ip_entry;
     // if(!$existingData){
     //     return response()->json(['message' => 'Data Tidak Ditemukan'],404);
     // }
@@ -243,7 +268,14 @@ public function edit(Request $request, $nolangg)
             $now = Carbon::now()->setTimezone('Asia/Jakarta');
             $data->tgl_baca = $now->toDateString();
             $m3 = $request->kini - $data->lalu;
-            $ipAddress = $request->ip();
+            // $ipAddress = $request->getClientIp();
+            // dd($request->getClientIp());
+
+            // $clientIP = $_SERVER['REMOTE_ADDR'];
+            // $location=Location::get($clientIP);
+            // $clientIP =$_SERVER['REMOTE_HOST'];
+            // $location=Location::get($clientIP);
+
             $ke =  Pelanggan::where('nolangg', $request->nolangg)
             ->where('periode', $data->periode )
             ->first();
@@ -266,7 +298,8 @@ public function edit(Request $request, $nolangg)
                 'm3' => $m3,
                 'user_entry' => $user_entry,
                 'pc_entry' => $pc_entry,
-                'ip_entry' => $ipAddress,
+                'ip_entry' => $publicIp,
+                // 'ip_entry' => Crypt::encryptString($publicIp),
                 'ke' => $newKe,
                 'file' =>  $dataFile,
 
