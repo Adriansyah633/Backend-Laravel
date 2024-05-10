@@ -79,29 +79,31 @@ public function cari_data_dism(Request $request)
 public function getCheckPelanggan(Request $request)
 {
     $periodeNow = Carbon::now()->setTimezone('Asia/Jakarta')->format('Ym');
+    $user = User::where('kode', $request->kode)->first();
 
-    // Periksa apakah ada data dengan nolangg yang sama
-    $data = Pelanggan::where('nolangg', $request->nolangg)->where('periode', '=', $periodeNow)->where('dt','=','0')->first();
+    if ($user) { 
+        $data = Pelanggan::where('nolangg', $request->nolangg)->where('periode','=', $periodeNow)->where('dt', '=', '0')->first();
 
-    // Jika tidak ada data ditemukan
-    if (!$data) {
-        return response()->json([
-            'result' => 'Data Tidak Ditemukan atau sudah SIAP!!',
-            'kode' => '0'
-        ]);
+        if ($data == null) {
+            return response()->json([
+                'result' => 'Data Tidak Ditemukan',
+                'kode' => '0'
+            ]);
+        } else {
+            // Jika cabang pada data yang ditemukan sesuai dengan cabang pengguna
+            if ($data->cabang == $user->cabang) {
+                return response()->json([
+                    'result' => 'Data ditemukan',
+                    'kode' => '1'
+                ]);
+            } else {
+                return response()->json([
+                    'result' => 'Data tidak ditemukan',
+                    'kode' => '0'
+                ]);
+            }
+        }
     }
-    // if ($data->dt !== '0') {
-    //     return response()->json([
-    //         'result' => 'Data tidak dapat diedit karena Data Sudah SIAP!!',
-    //         'kode' => '2'
-    //     ]);
-    // }
-
-    // Jika periode sekarang dan dt = 0
-    return response()->json([
-        'result' => 'Data ditemukan dan bisa diedit',
-        'kode' => '1'
-    ]);
 }
 public function getCheckBendel(Request $request)
 {
@@ -202,6 +204,7 @@ public function edit(Request $request, $nolangg)
      
     $now = Carbon::now()->setTimezone('Asia/Jakarta');
     $data->tgl_baca = $now->toDateString();
+    $data->jam_baca = $now->toTimeString();
     $data->periode = Carbon::now()->format('Ym'); 
     $statusBefore = $data->dt; 
     
@@ -241,7 +244,9 @@ public function edit(Request $request, $nolangg)
     // }
     // $clientIP = 'https://api.ip2location.io/?key=E8BC4C168D4FC2F961B305F8A2B0B710&ip=140.213.190.5';
 
+        // Mengambil data IP kedalam field Ip_entry
     $publicIp = Http::get('https://api.ipify.org')->body();
+
     // $getIp = strval($publicIp);
     // $getIp = Str::mask( $publicIp , '*', 4);
    
@@ -256,11 +261,11 @@ public function edit(Request $request, $nolangg)
     // Jika data sudah ada, lakukan pembaruan
     if ($existingData){
         if ($request->all()) {
-            $file = $request->file('file');
-            $storagePath = 'public/uploads';
-            $filePath = $file->store($storagePath);
-            $fileUrl = url(Storage::url($filePath));
-            $dataFile = $fileUrl;
+            // $file = $request->file('file');
+            // $storagePath = 'public/uploads';
+            // $filePath = $file->store($storagePath);
+            // $fileUrl = url(Storage::url($filePath));
+            // $dataFile = $fileUrl;
 
             $petugas = $request->user()->kode; 
             $user_entry = $request->user()->kode; 
@@ -268,13 +273,6 @@ public function edit(Request $request, $nolangg)
             $now = Carbon::now()->setTimezone('Asia/Jakarta');
             $data->tgl_baca = $now->toDateString();
             $m3 = $request->kini - $data->lalu;
-            // $ipAddress = $request->getClientIp();
-            // dd($request->getClientIp());
-
-            // $clientIP = $_SERVER['REMOTE_ADDR'];
-            // $location=Location::get($clientIP);
-            // $clientIP =$_SERVER['REMOTE_HOST'];
-            // $location=Location::get($clientIP);
 
             $ke =  Pelanggan::where('nolangg', $request->nolangg)
             ->where('periode', $data->periode )
@@ -290,6 +288,7 @@ public function edit(Request $request, $nolangg)
                 'dism' => $request->dism,
                 'petugas' => $petugas,
                 'tgl_baca' => $data->tgl_baca,
+                'jam_baca' => $data->jam_baca,
                 'alamat' => $request->alamat,
                 'st' => $request->st,
                 'dt' => '1' ,
@@ -301,7 +300,7 @@ public function edit(Request $request, $nolangg)
                 'ip_entry' => $publicIp,
                 // 'ip_entry' => Crypt::encryptString($publicIp),
                 'ke' => $newKe,
-                'file' =>  $dataFile,
+                // 'file' =>  $dataFile,
 
             ]);
             return response()->json([
@@ -414,11 +413,67 @@ public function uploadImage(Request $request, $nolangg)
 
     
 }
+public function uploadImageRiwayat(Request $request, $nolangg)
+{
+    $validator = Validator::make($request->all(), [
+        'file' => 'nullable|image', // Validasi untuk gambar
+    ]);
+
+    if ($validator->fails()) {
+        return response()->json(['error' => $validator->errors()], 422);
+    }
+
+    $periode = Carbon::now()->format('Ym'); 
+    // Cari data pelanggan berdasarkan nomor langganan
+    $pelanggan = Pelanggan::where('nolangg', $nolangg)->where('periode', $periode)->first();
+
+    if (!$pelanggan) {
+        $pelanggann = Pelanggan::where('nolangg', $nolangg)->first();
+        if ($pelanggann) {
+            if ($request->hasFile('file')) {
+                $file = $request->file('file');
+                $storagePath = 'public/uploads';
+                $filePath = $file->store($storagePath);
+                $fileUrl = url(Storage::url($filePath));
+                $dataFile = $fileUrl;
+    
+                Pelanggan::where('nolangg', $request->nolangg)
+                ->update([
+                    'file' =>  $dataFile,
+    
+                ]);
+                return response()->json([
+                    'message'=>'Data berhasil disimpan',
+                ],200);
+            }
+        }
+        return response()->json(['error' => 'Data pelanggan tidak ditemukan'], 404);
+    }else{
+        $file = $request->file('file');
+        $storagePath = 'public/uploads';
+        $filePath = $file->store($storagePath);
+        $fileUrl = url(Storage::url($filePath));
+          // Perbarui URL gambar pada data pelanggan
+        //   $pelanggan->file = $fileUrl;
+          $pelanggan = Pelanggan::where('nolangg', $nolangg)->where('periode', $periode)->update([
+            'file' =>  $fileUrl,
+          ]);
+        return response()->json(['message' => 'Gambar berhasil diunggah'], 200);
+    }
+
+    
+}
 public function riwayat(Request $request)
 {
+    
     $periodeNow = Carbon::now()->setTimezone('Asia/Jakarta')->format('Ym'); 
     $riwayat = RiwayatPelanggan::with('statusBaca', 
-    'rl_petugas', 'statusMeter', 'allStatusMeter', 'Cabang')->where('petugas','=', $request->petugas)->where('periode', '=', $periodeNow)->get();
+    'rl_petugas', 'statusMeter', 'allStatusMeter', 'Cabang')
+    ->where('petugas','=', $request->petugas)
+    ->where('periode', '=', $periodeNow)
+    ->orderByDesc('tgl_baca')
+    ->orderByDesc('jam_baca')
+    ->get();
 
     if (!$riwayat) {
         return response()->json(['message' => 'Riwayat Tidak Ditemukan'], 400);
@@ -453,5 +508,37 @@ public function delete($nolangg)
         ], 404);
     }
 }
+public function getJamBacaAwal(Request $request)
+{
+
+    $userCode = auth()->user()->kode;
+    // Validasi request
+    $request->validate([
+        'periode' => 'required|string', 
+    ]);
+
+    // Ambil periode dari request
+    $periode = $request->input('periode');
+
+    $now = Carbon::now()->setTimezone('Asia/Jakarta');
+    $currentDate = $now->toDateString();
+    $currentTime = $now->toTimeString();
+
+    // Subquery untuk mendapatkan jam baca paling awal untuk setiap nolangg
+    $data = RiwayatPelanggan::select('nolangg', 'tgl_baca', 'jam_baca')
+                ->where('periode', $periode)
+                ->where('petugas', $userCode) 
+                ->whereDate('tgl_baca', $currentDate)
+                ->whereTime('jam_baca', '<=', $currentTime)
+                ->orderBy('tgl_baca')
+                ->orderBy('jam_baca')
+                ->get();
+
+    // Kirim respons dengan data jam baca paling awal
+    return response()->json([
+        'data' => $data,
+    ]);
+}
+
 
 }

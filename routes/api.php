@@ -43,8 +43,10 @@ Route::get('/riwayat',  [PelangganController::class, 'riwayat']);
 Route::delete('delete/{nolangg}', [PelangganController::class, 'delete']);
 Route::get('/getStatus', [StatusController::class, 'index']);
 Route::post('/upload-image/{nolangg}', [PelangganController::class, 'uploadImage']);
+Route::post('/upload-image-riwayat/{nolangg}', [PelangganController::class, 'uploadImageRiwayat']);
 Route::post('/cari', [PelangganController::class, 'cariDataNolangg']);
 Route::post('/cari-riwayat', [PelangganController::class, 'cariDataRiwayat']);
+Route::get('/getJamBaca', [PelangganController::class, 'getJamBacaAwal']);
 
 });
 
